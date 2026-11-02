@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Grin</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2B3A8C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Grin">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700&display=swap">
+<style>
+:root{--bg:#F2F4F9;--sf:#fff;--ink:#16193A;--mu:#5C6285;--ln:#DDE1EE;--br:#2B3A8C;--bi:#fff;--ok:#1B7A4B;--okb:#DDF2E6;--lt:#A8412F;--ltb:#F8E1DC;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0F1226;--sf:#181C3A;--ink:#ECEEFA;--mu:#9AA1CC;--ln:#2A2F57;--br:#8C9BFF;--bi:#0F1226;--ok:#6FD6A0;--okb:#17382A;--lt:#FF9C88;--ltb:#3F2019;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0F1226;--sf:#181C3A;--ink:#ECEEFA;--mu:#9AA1CC;--ln:#2A2F57;--br:#8C9BFF;--bi:#0F1226;--ok:#6FD6A0;--okb:#17382A;--lt:#FF9C88;--ltb:#3F2019;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.45 Outfit,system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:640px;margin:0 auto;padding:16px}
+input,select{font:inherit;color:var(--ink);background:var(--sf);border:1px solid var(--ln);border-radius:10px;padding:10px 12px;min-width:0;width:100%}
+input:disabled{opacity:1;border-color:transparent;background:transparent;padding-left:0}
+button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--ln);background:var(--sf);color:var(--ink);padding:8px 12px}
+button.p{background:var(--br);color:var(--bi);border-color:var(--br);font-weight:500}
+:focus-visible{outline:2px solid var(--br);outline-offset:2px}
+[hidden]{display:none!important}
+#name{font-size:24px;font-weight:700;border:0;background:transparent;padding:4px 0}
+#name:disabled{padding:4px 0}
+.set{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0 16px}
+.set label{font-size:13px;color:var(--mu);display:block;margin-bottom:4px}
+.sum{background:var(--sf);border:1px solid var(--ln);border-radius:16px;padding:16px;margin-bottom:16px}
+.big{font-size:30px;font-weight:700;line-height:1.1}
+.sub{color:var(--mu);font-size:14px;margin-top:4px}
+.wall{display:grid;grid-template-columns:repeat(auto-fill,minmax(18px,1fr));gap:4px;margin-top:14px}
+.wall i{aspect-ratio:1;border-radius:4px;background:var(--ltb);border:1px solid var(--ln)}
+.wall i.on{background:var(--ok);border-color:var(--ok)}
+.tabs{display:flex;gap:8px;margin-bottom:12px}
+.tabs button.on{background:var(--br);color:var(--bi);border-color:var(--br)}
+ul{list-style:none;margin:0;padding:0}
+li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--ln)}
+.who{min-width:0}.who b{display:block;font-weight:500;overflow-wrap:anywhere}
+.chip{display:inline-block;font-size:13px;border-radius:99px;padding:1px 10px;margin-top:2px}
+.chip.ok{background:var(--okb);color:var(--ok)}.chip.lt{background:var(--ltb);color:var(--lt)}
+.acts{display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+.acts a{display:inline-block;text-decoration:none;color:var(--ink);border:1px solid var(--ln);background:var(--sf);border-radius:10px;padding:8px 12px}
+.add{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin:16px 0}
+.empty{color:var(--mu);padding:20px 0;text-align:center}
+.note{color:var(--mu);font-size:13px;margin-top:20px}
+.warn{background:var(--ltb);color:var(--lt);border-radius:10px;padding:10px 12px;margin:8px 0}
+.me .big{font-size:22px;margin:10px 0 2px}
+@media(max-width:420px){.add{grid-template-columns:1fr 1fr}.add button{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<main>
+<input id="name" aria-label="Nom du groupe" disabled>
+<div class="warn" id="off" hidden>Connexion à la base impossible. Vérifiez internet et le fichier config.js.</div>
+<div class="set">
+  <div><label for="period">Mois</label><input id="period" type="month" disabled></div>
+  <div><label for="amount">Montant par personne (FCFA)</label><input id="amount" type="number" min="0" inputmode="numeric" disabled></div>
+</div>
+<section class="sum me">
+  <label class="sub" for="who">Ma progression</label>
+  <select id="who" aria-label="Choisir mon nom"></select>
+  <div id="mec"></div>
+</section>
+<section class="sum" aria-live="polite">
+  <div class="big" id="coll"></div>
+  <div class="sub" id="cnt"></div>
+  <div class="wall" id="wall"></div>
+</section>
+<div class="tabs">
+  <button id="t1" class="on">Membres</button>
+  <button id="t2">Historique</button>
+</div>
+<div id="v1">
+  <div class="set" id="adm" hidden><div><label for="pd">Date du paiement</label><input id="pd" type="date"></div></div>
+  <input id="q" placeholder="Chercher un membre" aria-label="Chercher un membre">
+  <ul id="list"></ul>
+  <div class="add" id="addf" hidden>
+    <input id="mn" placeholder="Nom du membre" aria-label="Nom du membre">
+    <input id="mp" placeholder="Téléphone (WhatsApp)" inputmode="tel" aria-label="Téléphone">
+    <button class="p" id="addb">Ajouter</button>
+  </div>
+</div>
+<div id="v2" hidden>
+  <div class="sub" id="allt"></div>
+  <ul id="hist"></ul>
+</div>
+<p class="note">Grin · Tout le monde voit les mêmes informations. Seul le trésorier peut les modifier.</p>
+<details id="login" class="note"><summary>Espace trésorier</summary><div class="add"><input id="le" type="email" placeholder="Email" autocomplete="username" aria-label="Email"><input id="lp" type="password" placeholder="Mot de passe" autocomplete="current-password" aria-label="Mot de passe"><button class="p" id="lbtn">Se connecter</button></div><div id="lerr" class="sub"></div></details>
+<button id="logout" hidden>Se déconnecter</button>
+</main>
+<script src="config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+var db=null,canW=false,armed=null,q="",meId=null;
+var S={cfg:{name:"Notre cotisation",amount:5000,period:new Date().toISOString().slice(0,7)},members:[],payments:[],contacts:{}};
+try{meId=localStorage.getItem("cot-me")}catch(e){}
+var $=function(i){return document.getElementById(i)};
+var today=function(){return new Date().toISOString().slice(0,10)};
+function fmt(n){return n.toLocaleString("fr-FR")+" FCFA"}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function label(p){return new Date(p+"-01T12:00:00").toLocaleDateString("fr-FR",{month:"long",year:"numeric"})}
+function dfr(d){return new Date(d+"T12:00:00").toLocaleDateString("fr-FR")}
+function pays(m,per){return S.payments.filter(function(p){return p.mid===m.id&&(!per||p.period===per)})}
+function paidOf(m){return pays(m,S.cfg.period).reduce(function(a,p){return a+p.amount},0)}
+function isOk(m){return S.cfg.amount>0&&paidOf(m)>=S.cfg.amount}
+function dateOf(m){var l=pays(m,S.cfg.period).map(function(p){return p.date}).sort().pop();return l?dfr(l):""}
+function wa(m){
+  var d=((S.contacts[m.id]||{}).phone||"").replace(/\D/g,"");if(!d)return"";
+  if(d.length===8)d="223"+d;
+  var t="Bonjour "+m.name+", petit rappel : la cotisation de "+label(S.cfg.period)+" ("+fmt(S.cfg.amount)+") n’est pas encore réglée. Merci !";
+  return "https://wa.me/"+d+"?text="+encodeURIComponent(t);
+}
+function render(){
+  var ms=S.members,c=S.cfg;
+  var coll=S.payments.filter(function(p){return p.period===c.period}).reduce(function(a,p){return a+p.amount},0);
+  var done=ms.filter(isOk).length;
+  $("coll").textContent=fmt(coll)+" sur "+fmt(ms.length*c.amount);
+  $("cnt").textContent=ms.length?done+" sur "+ms.length+" ont payé en "+label(c.period):"Aucun membre pour l’instant.";
+  $("wall").innerHTML=ms.map(function(m){return '<i class="'+(isOk(m)?"on":"")+'" title="'+esc(m.name)+'"></i>'}).join("");
+  $("who").innerHTML='<option value="">Choisir mon nom</option>'+ms.map(function(m){return '<option value="'+m.id+'"'+(m.id===meId?" selected":"")+'>'+esc(m.name)+'</option>'}).join("");
+  var me=ms.filter(function(m){return m.id===meId})[0];
+  if(me){
+    var mine=pays(me).sort(function(a,b){return b.date.localeCompare(a.date)});
+    $("mec").innerHTML='<div class="big">'+(isOk(me)?"Payé le "+dateOf(me):"Reste "+fmt(Math.max(c.amount-paidOf(me),0)))+'</div><div class="sub">'+label(c.period)+' · '+mine.length+' paiement'+(mine.length>1?"s":"")+' au total</div><ul>'+
+    mine.map(function(p){return '<li><div class="who"><b>'+label(p.period)+'</b><span class="sub">payé le '+dfr(p.date)+'</span></div><b>'+fmt(p.amount)+'</b></li>'}).join("")+'</ul>';
+  }else $("mec").innerHTML='<div class="sub">Choisissez votre nom pour voir vos paiements.</div>';
+  var rows=ms.filter(function(m){return m.name.toLowerCase().indexOf(q)>-1}).map(function(m){return{m:m,ok:isOk(m),p:paidOf(m)}})
+    .sort(function(a,b){return a.ok-b.ok||a.m.name.localeCompare(b.m.name)});
+  $("list").innerHTML=rows.length?rows.map(function(r){
+    var m=r.m,link=canW&&!r.ok?wa(m):"";
+    return '<li><div class="who"><b>'+esc(m.name)+'</b><span class="chip '+(r.ok?"ok":"lt")+'">'+(r.ok?"Payé le "+dateOf(m):"Reste "+fmt(Math.max(c.amount-r.p,0)))+'</span></div>'+(canW?'<div class="acts">'+
+    (r.ok?'<button data-a="undo" data-id="'+m.id+'">Annuler</button>':'<button class="p" data-a="pay" data-id="'+m.id+'">Payé</button>')+
+    (link?'<a href="'+link+'" target="_blank" rel="noopener">Relancer</a>':"")+
+    '<button data-a="del" data-id="'+m.id+'">'+(armed===m.id?"Sûr ?":"Retirer")+'</button></div>':'')+'</li>'
+  }).join(""):'<li class="empty">'+(ms.length?"Aucun membre trouvé.":"Aucun membre pour l’instant.")+'</li>';
+  var all=S.payments.slice().sort(function(a,b){return b.date.localeCompare(a.date)});
+  $("allt").textContent="Total collecté depuis le début : "+fmt(S.payments.reduce(function(a,p){return a+p.amount},0));
+  $("hist").innerHTML=all.length?all.map(function(p){
+    var m=ms.filter(function(x){return x.id===p.mid})[0];
+    return '<li><div class="who"><b>'+esc(m?m.name:"Ancien membre")+'</b><span class="sub">'+label(p.period)+' · payé le '+dfr(p.date)+'</span></div><b>'+fmt(p.amount)+'</b></li>'
+  }).join(""):'<li class="empty">Aucun paiement enregistré.</li>';
+}
+function showCfg(){
+  var c=S.cfg;$("name").value=c.name;$("period").value=c.period;$("amount").value=c.amount;
+}
+function saveCfg(){if(fs&&canW)fs.collection("config").doc("main").set(S.cfg).catch(function(){alert("Action refusée.")})}
+$("name").onchange=function(){S.cfg.name=this.value;saveCfg()};
+$("period").onchange=function(){if(this.value){S.cfg.period=this.value;saveCfg();render()}};
+$("amount").onchange=function(){S.cfg.amount=Math.max(0,parseInt(this.value,10)||0);saveCfg();render()};
+$("q").oninput=function(){q=this.value.toLowerCase();render()};
+$("who").onchange=function(){meId=this.value||null;try{localStorage.setItem("cot-me",meId||"")}catch(e){}render()};
+function tab(n){$("v1").hidden=n!==1;$("v2").hidden=n!==2;$("t1").className=n===1?"on":"";$("t2").className=n===2?"on":""}
+$("t1").onclick=function(){tab(1)};$("t2").onclick=function(){tab(2)};
+var fs=null,auth=null,unsubC=null;
+function col(n){return fs.collection(n)}
+async function add(){
+  var n=$("mn").value.trim(),ph=$("mp").value.trim();if(!n||!fs)return;
+  $("mn").value="";$("mp").value="";
+  try{var r=await col("members").add({name:n,at:Date.now()});if(ph)await col("contacts").doc(r.id).set({phone:ph})}catch(e){alert("Action refusée.")}
+  $("mn").focus();
+}
+$("addb").onclick=add;
+$("mp").onkeydown=$("mn").onkeydown=function(e){if(e.key==="Enter")add()};
+$("list").onclick=async function(e){
+  var b=e.target.closest("button");if(!b||!canW||!fs)return;
+  var id=b.dataset.id,a=b.dataset.a,m=S.members.filter(function(x){return x.id===id})[0];if(!m)return;
+  try{
+    if(a==="pay"){var rest=S.cfg.amount-paidOf(m);if(rest>0)await col("payments").add({mid:id,period:S.cfg.period,amount:rest,date:$("pd").value||today()})}
+    if(a==="undo"){for(var p of pays(m,S.cfg.period))await col("payments").doc(p.id).delete()}
+    if(a==="del"){if(armed===id){armed=null;await col("members").doc(id).delete();await col("contacts").doc(id).delete()}else{armed=id;render();return}}
+  }catch(err){alert("Action refusée.")}
+  armed=null;
+};
+function rows(qs){return qs.docs.map(function(d){return Object.assign({id:d.id},d.data())})}
+function setAdmin(u){
+  canW=!!u;
+  ["name","period","amount"].forEach(function(i){$(i).disabled=!canW});
+  $("adm").hidden=$("addf").hidden=!canW;$("pd").value=today();
+  $("login").hidden=canW;$("logout").hidden=!canW;
+  if(unsubC){unsubC();unsubC=null}S.contacts={};
+  if(canW)unsubC=col("contacts").onSnapshot(function(qs){S.contacts={};rows(qs).forEach(function(r){S.contacts[r.id]=r});render()},function(){});
+  render();
+}
+$("lbtn").onclick=async function(){
+  $("lerr").textContent="";
+  try{await auth.signInWithEmailAndPassword($("le").value.trim(),$("lp").value)}catch(e){$("lerr").textContent="Email ou mot de passe incorrect."}
+};
+$("logout").onclick=function(){auth.signOut()};
+function init(){
+  showCfg();render();
+  if(typeof firebase==="undefined"||!window.FIREBASE_CONFIG||FIREBASE_CONFIG.apiKey==="A_REMPLACER"){$("off").hidden=false;return}
+  firebase.initializeApp(FIREBASE_CONFIG);fs=firebase.firestore();auth=firebase.auth();
+  fs.enablePersistence({synchronizeTabs:true}).catch(function(){});
+  var bad=function(){$("off").hidden=false};
+  col("config").doc("main").onSnapshot(function(d){if(d.exists){S.cfg=Object.assign(S.cfg,d.data());showCfg()}render()},bad);
+  col("members").onSnapshot(function(qs){S.members=rows(qs).sort(function(a,b){return a.name.localeCompare(b.name)});render()},bad);
+  col("payments").onSnapshot(function(qs){S.payments=rows(qs);render()},bad);
+  auth.onAuthStateChanged(setAdmin);
+}
+init();
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js");
+</script>
+</body>
+  </html>
