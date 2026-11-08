@@ -49,6 +49,11 @@ li{display:flex;justify-content:space-between;align-items:center;gap:10px;paddin
 .note{color:var(--mu);font-size:13px;margin-top:20px}
 .warn{background:var(--ltb);color:var(--lt);border-radius:10px;padding:10px 12px;margin:8px 0}
 .me .big{font-size:22px;margin:10px 0 2px}
+.mo{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;margin-top:6px}
+.mo i{height:14px;border-radius:3px;background:var(--ltb);border:1px solid var(--ln)}
+.mo i.f{background:var(--ok);border-color:var(--ok)}.mo i.h{background:#D9A441;border-color:#D9A441}
+.mo.hdr{margin:10px 0 0}.mo.hdr span{font-size:11px;color:var(--mu);text-align:center}
+#yr{width:auto;margin-bottom:8px}
 @media(max-width:420px){.add{grid-template-columns:1fr 1fr}.add button{grid-column:1/-1}}
 </style>
 </head>
@@ -73,6 +78,7 @@ li{display:flex;justify-content:space-between;align-items:center;gap:10px;paddin
 <div class="tabs">
   <button id="t1" class="on">Membres</button>
   <button id="t2">Historique</button>
+  <button id="t3">Année</button>
 </div>
 <div id="v1">
   <div class="set" id="adm" hidden><div><label for="pd">Date du paiement</label><input id="pd" type="date"></div></div>
@@ -88,6 +94,12 @@ li{display:flex;justify-content:space-between;align-items:center;gap:10px;paddin
   <div class="sub" id="allt"></div>
   <ul id="hist"></ul>
 </div>
+<div id="v3" hidden>
+  <select id="yr" aria-label="Année"></select>
+  <div class="sub" id="yt"></div>
+  <div class="mo hdr" id="mh"></div>
+  <ul id="ann"></ul>
+</div>
 <p class="note">Grin · Tout le monde voit les mêmes informations. Seul le trésorier peut les modifier.</p>
 <details id="login" class="note"><summary>Espace trésorier</summary><div class="add"><input id="le" type="email" placeholder="Email" autocomplete="username" aria-label="Email"><input id="lp" type="password" placeholder="Mot de passe" autocomplete="current-password" aria-label="Mot de passe"><button class="p" id="lbtn">Se connecter</button></div><div id="lerr" class="sub"></div></details>
 <button id="logout" hidden>Se déconnecter</button>
@@ -97,7 +109,7 @@ li{display:flex;justify-content:space-between;align-items:center;gap:10px;paddin
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-var db=null,canW=false,armed=null,q="",meId=null;
+var db=null,canW=false,armed=null,q="",meId=null,Y=null;
 var S={cfg:{name:"Notre cotisation",amount:5000,period:new Date().toISOString().slice(0,7)},members:[],payments:[],contacts:{}};
 try{meId=localStorage.getItem("cot-me")}catch(e){}
 var $=function(i){return document.getElementById(i)};
@@ -116,8 +128,10 @@ function wa(m){
   var t="Bonjour "+m.name+", petit rappel : la cotisation de "+label(S.cfg.period)+" ("+fmt(S.cfg.amount)+") n’est pas encore réglée. Merci !";
   return "https://wa.me/"+d+"?text="+encodeURIComponent(t);
 }
+function chipTxt(m,ok,p){var r=fmt(Math.max(S.cfg.amount-p,0));return ok?"Payé le "+dateOf(m):(p>0?"Versé "+fmt(p)+" · reste "+r:"Reste "+r)}
+function yearTotal(m){return S.payments.filter(function(p){return p.mid===m.id&&p.period.slice(0,4)===Y}).reduce(function(a,p){return a+p.amount},0)}
 function render(){
-  var ms=S.members,c=S.cfg;
+  var ms=S.members,c=S.cfg;if(!Y)Y=c.period.slice(0,4);
   var coll=S.payments.filter(function(p){return p.period===c.period}).reduce(function(a,p){return a+p.amount},0);
   var done=ms.filter(isOk).length;
   $("coll").textContent=fmt(coll)+" sur "+fmt(ms.length*c.amount);
@@ -127,15 +141,15 @@ function render(){
   var me=ms.filter(function(m){return m.id===meId})[0];
   if(me){
     var mine=pays(me).sort(function(a,b){return b.date.localeCompare(a.date)});
-    $("mec").innerHTML='<div class="big">'+(isOk(me)?"Payé le "+dateOf(me):"Reste "+fmt(Math.max(c.amount-paidOf(me),0)))+'</div><div class="sub">'+label(c.period)+' · '+mine.length+' paiement'+(mine.length>1?"s":"")+' au total</div><ul>'+
+    $("mec").innerHTML='<div class="big">'+chipTxt(me,isOk(me),paidOf(me))+'</div><div class="sub">'+label(c.period)+' · '+mine.length+' paiement'+(mine.length>1?"s":"")+' au total · Total versé en '+Y+' : '+fmt(yearTotal(me))+'</div><ul>'+
     mine.map(function(p){return '<li><div class="who"><b>'+label(p.period)+'</b><span class="sub">payé le '+dfr(p.date)+'</span></div><b>'+fmt(p.amount)+'</b></li>'}).join("")+'</ul>';
   }else $("mec").innerHTML='<div class="sub">Choisissez votre nom pour voir vos paiements.</div>';
   var rows=ms.filter(function(m){return m.name.toLowerCase().indexOf(q)>-1}).map(function(m){return{m:m,ok:isOk(m),p:paidOf(m)}})
     .sort(function(a,b){return a.ok-b.ok||a.m.name.localeCompare(b.m.name)});
   $("list").innerHTML=rows.length?rows.map(function(r){
     var m=r.m,link=canW&&!r.ok?wa(m):"";
-    return '<li><div class="who"><b>'+esc(m.name)+'</b><span class="chip '+(r.ok?"ok":"lt")+'">'+(r.ok?"Payé le "+dateOf(m):"Reste "+fmt(Math.max(c.amount-r.p,0)))+'</span></div>'+(canW?'<div class="acts">'+
-    (r.ok?'<button data-a="undo" data-id="'+m.id+'">Annuler</button>':'<button class="p" data-a="pay" data-id="'+m.id+'">Payé</button>')+
+    return '<li><div class="who"><b>'+esc(m.name)+'</b><span class="chip '+(r.ok?"ok":"lt")+'">'+chipTxt(m,r.ok,r.p)+'</span></div>'+(canW?'<div class="acts">'+
+    (r.ok?"":'<button class="p" data-a="pay" data-id="'+m.id+'">Payer</button>')+(r.p>0?'<button data-a="undo" data-id="'+m.id+'">Annuler</button>':"")+
     (link?'<a href="'+link+'" target="_blank" rel="noopener">Relancer</a>':"")+
     '<button data-a="del" data-id="'+m.id+'">'+(armed===m.id?"Sûr ?":"Retirer")+'</button></div>':'')+'</li>'
   }).join(""):'<li class="empty">'+(ms.length?"Aucun membre trouvé.":"Aucun membre pour l’instant.")+'</li>';
@@ -145,6 +159,21 @@ function render(){
     var m=ms.filter(function(x){return x.id===p.mid})[0];
     return '<li><div class="who"><b>'+esc(m?m.name:"Ancien membre")+'</b><span class="sub">'+label(p.period)+' · payé le '+dfr(p.date)+'</span></div><b>'+fmt(p.amount)+'</b></li>'
   }).join(""):'<li class="empty">Aucun paiement enregistré.</li>';
+  renderYear();
+}
+function renderYear(){
+  var ys={};ys[new Date().getFullYear()]=1;ys[S.cfg.period.slice(0,4)]=1;S.payments.forEach(function(p){ys[p.period.slice(0,4)]=1});
+  $("yr").innerHTML=Object.keys(ys).sort().reverse().map(function(y){return '<option'+(y===Y?" selected":"")+'>'+y+'</option>'}).join("");
+  var tot=S.payments.filter(function(p){return p.period.slice(0,4)===Y}).reduce(function(a,p){return a+p.amount},0);
+  $("yt").textContent="Total collecté en "+Y+" : "+fmt(tot);
+  $("mh").innerHTML="JFMAMJJASOND".split("").map(function(l){return "<span>"+l+"</span>"}).join("");
+  $("ann").innerHTML=S.members.length?S.members.map(function(m){
+    var mo="",full=0;
+    for(var i=1;i<=12;i++){var per=Y+"-"+(i<10?"0":"")+i;var s=pays(m,per).reduce(function(a,p){return a+p.amount},0);
+      var k=S.cfg.amount>0&&s>=S.cfg.amount?"f":(s>0?"h":"");if(k==="f")full++;
+      mo+='<i class="'+k+'" title="'+label(per)+' : '+fmt(s)+'"></i>'}
+    return '<li><div class="who" style="width:100%"><b>'+esc(m.name)+'</b><span class="sub">Total '+fmt(yearTotal(m))+' · '+full+' mois complet'+(full>1?"s":"")+'</span><div class="mo">'+mo+'</div></div></li>'
+  }).join(""):'<li class="empty">Aucun membre pour l’instant.</li>';
 }
 function showCfg(){
   var c=S.cfg;$("name").value=c.name;$("period").value=c.period;$("amount").value=c.amount;
@@ -155,8 +184,9 @@ $("period").onchange=function(){if(this.value){S.cfg.period=this.value;saveCfg()
 $("amount").onchange=function(){S.cfg.amount=Math.max(0,parseInt(this.value,10)||0);saveCfg();render()};
 $("q").oninput=function(){q=this.value.toLowerCase();render()};
 $("who").onchange=function(){meId=this.value||null;try{localStorage.setItem("cot-me",meId||"")}catch(e){}render()};
-function tab(n){$("v1").hidden=n!==1;$("v2").hidden=n!==2;$("t1").className=n===1?"on":"";$("t2").className=n===2?"on":""}
-$("t1").onclick=function(){tab(1)};$("t2").onclick=function(){tab(2)};
+function tab(n){[1,2,3].forEach(function(i){$("v"+i).hidden=n!==i;$("t"+i).className=n===i?"on":""})}
+$("t1").onclick=function(){tab(1)};$("t2").onclick=function(){tab(2)};$("t3").onclick=function(){tab(3)};
+$("yr").onchange=function(){Y=this.value;render()};
 var fs=null,auth=null,unsubC=null;
 function col(n){return fs.collection(n)}
 async function add(){
@@ -171,8 +201,13 @@ $("list").onclick=async function(e){
   var b=e.target.closest("button");if(!b||!canW||!fs)return;
   var id=b.dataset.id,a=b.dataset.a,m=S.members.filter(function(x){return x.id===id})[0];if(!m)return;
   try{
-    if(a==="pay"){var rest=S.cfg.amount-paidOf(m);if(rest>0)await col("payments").add({mid:id,period:S.cfg.period,amount:rest,date:$("pd").value||today()})}
-    if(a==="undo"){for(var p of pays(m,S.cfg.period))await col("payments").doc(p.id).delete()}
+    if(a==="pay"){var rest=S.cfg.amount-paidOf(m);if(rest>0){
+      var v=prompt("Montant versé par "+m.name+" (reste "+fmt(rest)+")",rest);if(v===null)return;
+      var amt=parseInt(String(v).replace(/\s/g,""),10);
+      if(!(amt>0)){alert("Montant invalide.");return}
+      if(amt>rest){alert("Le montant dépasse le reste à payer ("+fmt(rest)+").");return}
+      await col("payments").add({mid:id,period:S.cfg.period,amount:amt,date:$("pd").value||today(),at:Date.now()})}}
+    if(a==="undo"){var ps=pays(m,S.cfg.period).sort(function(x,y){return (x.date+(1e13+(x.at||0))).localeCompare(y.date+(1e13+(y.at||0)))});var last=ps.pop();if(last)await col("payments").doc(last.id).delete()}
     if(a==="del"){if(armed===id){armed=null;await col("members").doc(id).delete();await col("contacts").doc(id).delete()}else{armed=id;render();return}}
   }catch(err){alert("Action refusée.")}
   armed=null;
@@ -207,4 +242,4 @@ init();
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js");
 </script>
 </body>
-  </html>
+                                                                                        </html>
